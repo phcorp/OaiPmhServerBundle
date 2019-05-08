@@ -2,108 +2,25 @@
 
 namespace Naoned\OaiPmhServerBundle\OaiPmh;
 
-use Naoned\OaiPmhServerBundle\Exception\OaiPmhServerException;
 use Naoned\OaiPmhServerBundle\Exception\BadArgumentException;
-use Naoned\OaiPmhServerBundle\Exception\BadVerbException;
 use Naoned\OaiPmhServerBundle\Exception\BadResumptionTokenException;
 use Naoned\OaiPmhServerBundle\Exception\CannotDisseminateFormatException;
 
 // Unsused for now since we assume all record are available in oAI_DC format
-use Naoned\OaiPmhServerBundle\Exception\IdDoesNotExistException;
 
 class OaiPmhRuler
 {
     const CACHE_PREFIX = 'oaipmh_';
     const DEFAULT_STARTS = 0;
-
-    private $countPerLoad;
     private static $availableMetadata = array(
         // This server currently supports only oai_dc Data format
         'oai_dc' => array(
-           'schema'            => 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd',
-           'metadataNamespace' => 'http://www.openarchives.org/OAI/2.0/oai_dc/',
-        )
+            'schema' => 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd',
+            'metadataNamespace' => 'http://www.openarchives.org/OAI/2.0/oai_dc/',
+        ),
     );
+    private $countPerLoad;
 
-    public function setCountPerLoad($countPerLoad)
-    {
-        $this->countPerLoad = $countPerLoad;
-    }
-
-    private static function getcacheKey($token)
-    {
-        return self::CACHE_PREFIX.$token;
-    }
-
-    public function getAvailableMetadata()
-    {
-        return self::$availableMetadata;
-    }
-
-    public function getSearchParams($queryParams, $cache)
-    {
-        if (array_key_exists('resumptionToken', $queryParams)
-            && $resumptionToken = $queryParams['resumptionToken']
-        ) {
-            $cacheData = $cache->fetch($this->getcacheKey($resumptionToken));
-            if (!$cacheData || $cacheData['verb'] != $queryParams['verb']) {
-                throw new badResumptionTokenException();
-            }
-            $searchParams = $cacheData;
-        } else {
-            $searchParams           = $queryParams;
-            $searchParams['starts'] = self::DEFAULT_STARTS;
-            $searchParams['ends']   = self::DEFAULT_STARTS + $this->countPerLoad - 1;
-        }
-
-        return $searchParams;
-    }
-
-    public function generateResumptionToken()
-    {
-        return uniqid();
-    }
-
-    public function getResumption($items, $searchParams, $cache)
-    {
-        $resumption = array();
-        $resumption['next'] = false;
-        $itemMax = count($items) - 1;
-        if ($searchParams['ends'] < $itemMax) {
-            $resumption['next']       = true;
-            $resumption['token']      = $this->generateResumptionToken();
-            $resumption['expiresOn']  = time() + 604800;
-            $resumption['totalCount'] = count($items);
-            $cache->save(
-                $this->getcacheKey($resumption['token']),
-                array_merge(
-                    $searchParams,
-                    array(
-                        'starts' => $searchParams['starts'] + $this->countPerLoad,
-                        'ends'   => $searchParams['starts'] + $this->countPerLoad * 2,
-                    )
-                )
-            );
-        }
-        $resumption['starts'] = $searchParams['starts'];
-        $ends = $searchParams['starts'] + $this->countPerLoad - 1;
-        $resumption['ends'] = min($itemMax, $ends);
-        $resumption['totalCount'] = count($items);
-        $resumption['items'] = $items;
-        $resumption['isFirst'] = $resumption['starts'] == self::DEFAULT_STARTS;
-        $resumption['isLast'] = $resumption['ends'] == $itemMax;
-
-        return $resumption;
-    }
-
-    public function checkMetadataPrefix($queryParams)
-    {
-        if (!in_array($queryParams['metadataPrefix'], array_keys(self::$availableMetadata))) {
-            throw new cannotDisseminateFormatException();
-        }
-    }
-
-    // Retrieve arguments and check requirements are fulfilled
     public static function retrieveAndCheckArguments(
         array $allArguments,
         array $required = array(),
@@ -121,7 +38,7 @@ class OaiPmhRuler
         if (!$found) {
             foreach ($required as $name) {
                 if (!array_key_exists($name, $allArguments)) {
-                    throw new BadArgumentException('The request is missing required arguments');
+                    throw new BadArgumentException("The request is missing required argument '$name'");
                 }
                 $queryParams[$name] = $allArguments[$name];
             }
@@ -133,6 +50,7 @@ class OaiPmhRuler
         }
 
         self::checkNoOtherArguments($queryParams, $allArguments);
+
         return $queryParams;
     }
 
@@ -149,10 +67,10 @@ class OaiPmhRuler
         if (!preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $date)) {
             throw new BadArgumentException('Date boundaries is/are not correct');
         }
+
         return new \DateTime($date);
     }
 
-    // Test arguments unicity
     public static function checkParamsUnicity($queryString)
     {
         if (!$queryString) {
@@ -172,5 +90,87 @@ class OaiPmhRuler
             $params[$name] = true;
         }
         unset($params);
+    }
+
+    public function setCountPerLoad($countPerLoad)
+    {
+        $this->countPerLoad = $countPerLoad;
+    }
+
+    public function getAvailableMetadata()
+    {
+        return self::$availableMetadata;
+    }
+
+    public function getSearchParams($queryParams, $cache)
+    {
+        if (array_key_exists('resumptionToken', $queryParams)
+            && $resumptionToken = $queryParams['resumptionToken']
+        ) {
+            $cacheData = $cache->fetch($this->getcacheKey($resumptionToken));
+            if (!$cacheData || $cacheData['verb'] != $queryParams['verb']) {
+                throw new badResumptionTokenException();
+            }
+            $searchParams = $cacheData;
+        } else {
+            $searchParams = $queryParams;
+            $searchParams['starts'] = self::DEFAULT_STARTS;
+            $searchParams['ends'] = self::DEFAULT_STARTS + $this->countPerLoad - 1;
+        }
+
+        return $searchParams;
+    }
+
+    // Retrieve arguments and check requirements are fulfilled
+
+    private static function getcacheKey($token)
+    {
+        return self::CACHE_PREFIX.$token;
+    }
+
+    public function getResumption($items, $searchParams, $cache)
+    {
+        $resumption = array();
+        $resumption['next'] = false;
+        $itemMax = count($items) - 1;
+        if ($searchParams['ends'] < $itemMax) {
+            $resumption['next'] = true;
+            $resumption['token'] = $this->generateResumptionToken();
+            $resumption['expiresOn'] = time() + 604800;
+            $resumption['totalCount'] = count($items);
+            $cache->save(
+                $this->getcacheKey($resumption['token']),
+                array_merge(
+                    $searchParams,
+                    array(
+                        'starts' => $searchParams['starts'] + $this->countPerLoad,
+                        'ends' => $searchParams['starts'] + $this->countPerLoad * 2,
+                    )
+                )
+            );
+        }
+        $resumption['starts'] = $searchParams['starts'];
+        $ends = $searchParams['starts'] + $this->countPerLoad - 1;
+        $resumption['ends'] = min($itemMax, $ends);
+        $resumption['totalCount'] = count($items);
+        $resumption['items'] = $items;
+        $resumption['isFirst'] = $resumption['starts'] == self::DEFAULT_STARTS;
+        $resumption['isLast'] = $resumption['ends'] == $itemMax;
+
+        return $resumption;
+    }
+
+    public function generateResumptionToken()
+    {
+        return uniqid();
+    }
+
+    // Test arguments unicity
+
+    public function checkMetadataPrefix($queryParams)
+    {
+        if (!in_array($queryParams['metadataPrefix'], array_keys(self::$availableMetadata))) {
+            throw new cannotDisseminateFormatException();
+        }
     }
 }

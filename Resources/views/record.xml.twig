@@ -1,6 +1,6 @@
 <record>
-  {% include 'NaonedOaiPmhServerBundle::recordHeader.xml.twig' %}
-  <metadata>
-    {% include 'NaonedOaiPmhServerBundle::recordMetadata_' ~ metadataPrefix ~ '.xml.twig' %}
-  </metadata>
+    {% include '@NaonedOaiPmhServer/recordHeader.xml.twig' %}
+    <metadata>
+        {% include '@NaonedOaiPmhServer/recordMetadata_' ~ metadataPrefix ~ '.xml.twig' %}
+    </metadata>
 </record>

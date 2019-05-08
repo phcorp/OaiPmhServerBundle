@@ -3,4 +3,3 @@ naoned_oaipmh:
     defaults:
         _controller: NaonedOaiPmhServerBundle:Main:Index
         _format: xml
-

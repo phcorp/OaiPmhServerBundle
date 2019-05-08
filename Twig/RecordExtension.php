@@ -6,6 +6,9 @@ use Naoned\OaiPmhServerBundle\DataProvider\DataProviderInterface;
 
 class RecordExtension extends \Twig_Extension
 {
+    /**
+     * @var DataProviderInterface
+     */
     private $dataProvider;
 
     public function getFunctions()
@@ -36,17 +39,12 @@ class RecordExtension extends \Twig_Extension
 
     public function getRecordId($record)
     {
-        return $this->dataProvider->getRecordId($record);
+        return $this->dataProvider::getRecordId($record);
     }
 
     public function getRecordUpdated($record)
     {
-        return $this->dataProvider->getRecordUpdated($record);
-    }
-
-    public function getThumb($record)
-    {
-        return $this->dataProvider->getThumb($record);
+        return $this->dataProvider::getRecordUpdated($record);
     }
 
     // for a service we need a name

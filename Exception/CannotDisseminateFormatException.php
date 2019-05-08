@@ -12,6 +12,7 @@ class CannotDisseminateFormatException extends OaiPmhServerException implements 
             $message = 'The metadata format identified by the value given for the metadataPrefix argument
                         is not supported by the item or by the repository.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

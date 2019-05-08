@@ -2,18 +2,21 @@
 
 namespace Naoned\OaiPmhServerBundle\Controller;
 
+use Doctrine\Common\Cache\CacheProvider;
+use Naoned\OaiPmhServerBundle\DataProvider\DataProviderInterface;
+use Naoned\OaiPmhServerBundle\Exception\BadVerbException;
+use Naoned\OaiPmhServerBundle\Exception\IdDoesNotExistException;
+use Naoned\OaiPmhServerBundle\Exception\NoRecordsMatchException;
+use Naoned\OaiPmhServerBundle\Exception\NoSetHierarchyException;
+use Naoned\OaiPmhServerBundle\Exception\OaiPmhServerException;
+use Naoned\OaiPmhServerBundle\OaiPmh\OaiPmhRuler;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Naoned\OaiPmhServerBundle\Exception\OaiPmhServerException;
-use Naoned\OaiPmhServerBundle\Exception\BadVerbException;
-use Naoned\OaiPmhServerBundle\Exception\NoRecordsMatchException;
-use Naoned\OaiPmhServerBundle\Exception\NoSetHierarchyException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Naoned\OaiPmhServerBundle\Exception\IdDoesNotExistException;
-use Naoned\OaiPmhServerBundle\DataProvider\DataProviderInterface;
 
-class MainController extends Controller
+class MainController extends AbstractController
 {
     private $availableVerbs = array(
         'GetRecord',
@@ -24,12 +27,28 @@ class MainController extends Controller
         'ListSets',
     );
 
+    /**
+     * @var CacheProvider
+     */
+    private $cache;
+
     private $queryParams = array();
+
+    /**
+     * @var OaiPmhRuler
+     */
+    private $ruler;
+
+    public function __construct(CacheProvider $cache, OaiPmhRuler $ruler)
+    {
+        $this->cache = $cache;
+        $this->ruler = $ruler;
+    }
 
     public function indexAction(Request $request)
     {
         try {
-            $this->get('naoned.oaipmh.ruler')->checkParamsUnicity($request->getQueryString());
+            $this->ruler->checkParamsUnicity($request->getQueryString());
 
             $this->allArgs = $this->getAllArguments($request);
             if (!array_key_exists('verb', $this->allArgs)) {
@@ -40,11 +59,12 @@ class MainController extends Controller
                 throw new BadVerbException('Value of the verb argument is not a legal OAI-PMH verb.');
             }
             $methodName = $verb.'Verb';
+
             return $this->$methodName($request);
         } catch (\Exception $e) {
             if ($e instanceof OaiPmhServerException) {
                 $reflect = new \ReflectionClass($e);
-                //Remove «Exception» at end of class namespace
+                // remove «Exception» at end of class namespace
                 $code = substr($reflect->getShortName(), 0, -9);
                 // lowercase first char
                 $code[0] = strtolower(substr($code, 0, 1));
@@ -53,6 +73,7 @@ class MainController extends Controller
             } else {
                 $code = 'unknownError';
             }
+
             return $this->error($code, $e->getMessage());
         }
     }
@@ -70,11 +91,12 @@ class MainController extends Controller
         if (!$message) {
             $message = 'Unknown error';
         }
+
         return $this->render(
-            'NaonedOaiPmhServerBundle::error.xml.twig',
+            '@NaonedOaiPmhServer/error.xml.twig',
             $viewParams = array(
-                'code'        => $code,
-                'message'     => $message,
+                'code' => $code,
+                'message' => $message,
                 'queryParams' => $this->queryParams,
             )
         );
@@ -83,110 +105,133 @@ class MainController extends Controller
     private function identifyVerb(Request $request)
     {
         $dataProvider = $this->getDataProvider();
-        $oaiPmhRuler = $this->get('naoned.oaipmh.ruler');
-        $this->queryParams = $oaiPmhRuler->retrieveAndCheckArguments(
+        $this->queryParams = $this->ruler->retrieveAndCheckArguments(
             $this->getAllArguments($request)
         );
+
         return $this->render(
-            'NaonedOaiPmhServerBundle::identify.xml.twig',
+            '@NaonedOaiPmhServer/identify.xml.twig',
             array(
                 'dataProvider' => $dataProvider,
-                'queryParams'  => $this->queryParams,
+                'queryParams' => $this->queryParams,
             )
         );
+    }
+
+    private function getDataProvider()
+    {
+        $service = $this->container->getParameter('naoned.oaipmh_server.data_provider_service_name');
+        $dataProvider = $this->get($service);
+        if (!$dataProvider instanceof DataProviderInterface) {
+            throw new \Exception(sprintf("Class of service %s must implement %s", $service, 'DataProviderInterface'));
+        }
+
+        return $dataProvider;
     }
 
     private function getRecordVerb(Request $request)
     {
         $dataProvider = $this->getDataProvider();
-        $oaiPmhRuler = $this->get('naoned.oaipmh.ruler');
-        $this->queryParams = $oaiPmhRuler->retrieveAndCheckArguments(
+        $this->queryParams = $this->ruler->retrieveAndCheckArguments(
             $this->getAllArguments($request),
             array(
                 'metadataPrefix',
                 'identifier',
             )
         );
-        $oaiPmhRuler->checkMetadataPrefix($this->queryParams);
+        $this->ruler->checkMetadataPrefix($this->queryParams);
         $record = $this->retrieveRecord($this->queryParams['identifier']);
 
         return $this->render(
-            'NaonedOaiPmhServerBundle::getRecord.xml.twig',
+            '@NaonedOaiPmhServer/getRecord.xml.twig',
             array(
-                'record'         => $record,
-                'queryParams'    => $this->queryParams,
+                'record' => $record,
+                'queryParams' => $this->queryParams,
                 'metadataPrefix' => $this->queryParams['metadataPrefix'],
             )
         );
     }
 
-    private function listCommon(Request $request)
+    private function retrieveRecord($id)
     {
-        $oaiPmhRuler = $this->get('naoned.oaipmh.ruler');
-        $this->queryParams = $oaiPmhRuler->retrieveAndCheckArguments(
-            $this->getAllArguments($request),
-            array('metadataPrefix'),
-            array('from','until','set'),
-            array('resumptionToken')
-        );
-        if (!array_key_exists('resumptionToken', $this->queryParams)) {
-            $oaiPmhRuler->checkMetadataPrefix($this->queryParams);
-        }
+        // Extract relevant identifier part
+        $parts = explode(':', $id);
+        $id = end($parts);
 
         $dataProvider = $this->getDataProvider();
-        $searchParams = $oaiPmhRuler->getSearchParams(
-            $this->queryParams,
-            $this->get('naoned.oaipmh.cache')
-        );
-        if (isset($searchParams['set']) && !$dataProvider->checkSupportSets()) {
-            throw new NoSetHierarchyException();
+        $record = $dataProvider->getRecord($id);
+        if (!$record) {
+            throw new idDoesNotExistException();
         }
-        $from = isset($searchParams['from']) ? $oaiPmhRuler->checkGranularity($searchParams['from']) : null;
-        $until = isset($searchParams['until']) ? $oaiPmhRuler->checkGranularity($searchParams['until']) : null;
-        $records = $dataProvider->getRecords(
-            isset($searchParams['set']) ? $searchParams['set'] : null,
-            $from,
-            $until
-        );
-        if (!(is_array($records) || $records instanceof \ArrayObject)) {
-            throw new \Exception('Implementation error: Records must be an array or an arrayObject');
-        }
-        if (!count($records)) {
-            throw new noRecordsMatchException();
-        }
-        $resumption = $oaiPmhRuler->getResumption(
-            $records,
-            $searchParams,
-            $this->get('naoned.oaipmh.cache')
-        );
 
-        return array(
-            'resumption'     => $resumption,
-            'metadataPrefix' => $searchParams['metadataPrefix'],
-            'queryParams'    => $this->queryParams,
-        );
+        return $record;
     }
 
     private function listRecordsVerb(Request $request)
     {
         return $this->render(
-            'NaonedOaiPmhServerBundle::listRecords.xml.twig',
+            '@NaonedOaiPmhServer/listRecords.xml.twig',
             $this->listCommon($request)
+        );
+    }
+
+    private function listCommon(Request $request)
+    {
+        $this->queryParams = $this->ruler->retrieveAndCheckArguments(
+            $this->getAllArguments($request),
+            array('metadataPrefix'),
+            array('from', 'until', 'set'),
+            array('resumptionToken')
+        );
+        if (!array_key_exists('resumptionToken', $this->queryParams)) {
+            $this->ruler->checkMetadataPrefix($this->queryParams);
+        }
+
+        $dataProvider = $this->getDataProvider();
+        $searchParams = $this->ruler->getSearchParams(
+            $this->queryParams,
+            $this->cache
+        );
+        if (isset($searchParams['set']) && !$dataProvider->checkSupportSets()) {
+            throw new NoSetHierarchyException();
+        }
+        $from = isset($searchParams['from']) ? $this->ruler->checkGranularity($searchParams['from']) : null;
+        $until = isset($searchParams['until']) ? $this->ruler->checkGranularity($searchParams['until']) : null;
+        $records = $dataProvider->getRecords(
+            isset($searchParams['set']) ? $searchParams['set'] : null,
+            $from,
+            $until
+        );
+        if (!\is_iterable($records)) {
+            throw new \Exception('Implementation error: Records must be an array or an arrayObject');
+        }
+        if (!count($records)) {
+            throw new noRecordsMatchException();
+        }
+        $resumption = $this->ruler->getResumption(
+            $records,
+            $searchParams,
+            $this->cache
+        );
+
+        return array(
+            'resumption' => $resumption,
+            'metadataPrefix' => $searchParams['metadataPrefix'],
+            'queryParams' => $this->queryParams,
         );
     }
 
     private function listIdentifiersVerb(Request $request)
     {
         return $this->render(
-            'NaonedOaiPmhServerBundle::listIdentifiers.xml.twig',
+            '@NaonedOaiPmhServer/listIdentifiers.xml.twig',
             $this->listCommon($request)
         );
     }
 
     private function listMetadataFormatsVerb(Request $request)
     {
-        $oaiPmhRuler = $this->get('naoned.oaipmh.ruler');
-        $this->queryParams = $oaiPmhRuler->retrieveAndCheckArguments(
+        $this->queryParams = $this->ruler->retrieveAndCheckArguments(
             $this->getAllArguments($request),
             array(),
             array('identifier')
@@ -195,19 +240,19 @@ class MainController extends Controller
         if (array_key_exists('identifier', $this->queryParams)) {
             $record = $this->retrieveRecord($this->queryParams['identifier']);
         }
+
         return $this->render(
-            'NaonedOaiPmhServerBundle::listMetadataFormats.xml.twig',
+            '@NaonedOaiPmhServer/listMetadataFormats.xml.twig',
             array(
-                'availableMetadata' => $oaiPmhRuler->getAvailableMetadata(),
-                'queryParams'       => $this->queryParams,
+                'availableMetadata' => $this->ruler->getAvailableMetadata(),
+                'queryParams' => $this->queryParams,
             )
         );
     }
 
     private function listSetsVerb(Request $request)
     {
-        $oaiPmhRuler = $this->get('naoned.oaipmh.ruler');
-        $this->queryParams = $oaiPmhRuler->retrieveAndCheckArguments(
+        $this->queryParams = $this->ruler->retrieveAndCheckArguments(
             $this->getAllArguments($request),
             array(),
             array(),
@@ -221,47 +266,24 @@ class MainController extends Controller
         if ($sets !== null && (!(is_array($sets) || ($sets instanceof \ArrayObject)))) {
             throw new \Exception('Implementation error: Sets must be an array or an arrayObject');
         }
-        $searchParams = $oaiPmhRuler->getSearchParams(
+        $searchParams = $this->ruler->getSearchParams(
             $this->queryParams,
-            $this->get('naoned.oaipmh.cache')
+            $this->cache
         );
-        $resumption = $oaiPmhRuler->getResumption(
+        $resumption = $this->ruler->getResumption(
             $sets,
             $searchParams,
-            $this->get('naoned.oaipmh.cache')
+            $this->cache
         );
+
         return $this->render(
-            'NaonedOaiPmhServerBundle::listSets.xml.twig',
+            '@NaonedOaiPmhServer/listSets.xml.twig',
             array(
-                'query'        => $this->queryParams,
-                'resumption'   => $resumption,
+                'query' => $this->queryParams,
+                'resumption' => $resumption,
                 'searchParams' => $searchParams,
-                'queryParams'  => $this->queryParams,
+                'queryParams' => $this->queryParams,
             )
         );
-    }
-
-    private function retrieveRecord($id)
-    {
-        // Extract relevant identifier part
-        $parts = explode(':', $id);
-        $id    = end($parts);
-
-        $dataProvider = $this->getDataProvider();
-        $record = $dataProvider->getRecord($id);
-        if (!$record) {
-            throw new idDoesNotExistException();
-        }
-        return $record;
-    }
-
-    private function getDataProvider()
-    {
-        $service = $this->container->getParameter('naoned.oaipmh_server.data_provider_service_name');
-        $dataProvider = $this->get($service);
-        if (!$dataProvider instanceof DataProviderInterface) {
-            throw new \Exception(sprintf("Class of service %s must implement %s", $service, 'DataProviderInterface'));
-        }
-        return $dataProvider;
     }
 }

@@ -22,7 +22,6 @@ class OaiPmhRulerTests extends \PHPUnit_Framework_TestCase
             array('opt' => 1),
             array('req')
         );
-
     }
 
     // Optionnal paramters
@@ -44,7 +43,6 @@ class OaiPmhRulerTests extends \PHPUnit_Framework_TestCase
             array('opt')
         );
         $this->assertEquals($args, array());
-
     }
 
     // Exclusive paramters

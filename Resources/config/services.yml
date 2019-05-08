@@ -1,5 +1,10 @@
-
 services:
+    Naoned\OaiPmhServerBundle\Controller\MainController:
+        arguments:
+            $cache: '@naoned.oaipmh.cache'
+            $ruler: '@naoned.oaipmh.ruler'
+        public: true;
+
     naoned.oaipmh.ruler:
         class: Naoned\OaiPmhServerBundle\OaiPmh\OaiPmhRuler
         calls:

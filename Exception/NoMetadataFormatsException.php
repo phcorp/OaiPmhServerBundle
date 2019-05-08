@@ -11,6 +11,7 @@ class NoMetadataFormatsException extends OaiPmhServerException implements Except
         if (!$message) {
             $message = 'There are no metadata formats available for the specified item.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

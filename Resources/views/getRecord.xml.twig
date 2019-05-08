@@ -1,7 +1,7 @@
-{% extends 'NaonedOaiPmhServerBundle::template.xml.twig' %}
+{% extends '@NaonedOaiPmhServer/template.xml.twig' %}
 
 {% block content %}
-    <GetRecord>
-        {% include 'NaonedOaiPmhServerBundle::record.xml.twig' %}
-    </GetRecord>
+<GetRecord>
+    {% include '@NaonedOaiPmhServer/record.xml.twig' %}
+</GetRecord>
 {% endblock %}

@@ -12,6 +12,7 @@ class BadVerbException extends OaiPmhServerException implements ExceptionInterfa
             $message = 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the
                         verb argument is repeated.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

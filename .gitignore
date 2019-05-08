@@ -1,4 +1,4 @@
 composer.lock
 vendor
 
-.remote-sync.json
+.php_cs.cache

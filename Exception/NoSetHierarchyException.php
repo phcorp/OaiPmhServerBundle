@@ -11,6 +11,7 @@ class NoSetHierarchyException extends OaiPmhServerException implements Exception
         if (!$message) {
             $message = 'The repository does not support sets.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

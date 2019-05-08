@@ -1,76 +1,94 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Naoned\OaiPmhServerBundle\DataProvider;
+
+use DateTimeInterface;
+use Naoned\OaiPmhServerBundle\Model\RecordInterface;
 
 interface DataProviderInterface
 {
     /**
+     * Get identifier of id.
+     *
+     * @param RecordInterface $record An item of elements furnished by getRecords method
+     *
+     * @return string Record Id
+     */
+    public static function getRecordId(RecordInterface $record): string;
+
+    /**
+     * Get last change date.
+     *
+     * @param RecordInterface $record An item of elements furnished by getRecords method
+     *
+     * @return DateTimeInterface Record last change
+     */
+    public static function getRecordUpdated(RecordInterface $record): DateTimeInterface;
+
+    /**
      * @return string Repository name
      */
-    public function getRepositoryName();
+    public function getRepositoryName(): string;
 
     /**
      * @return string Repository admin email
      */
-    public function getAdminEmail();
+    public function getAdminEmail(): string;
 
     /**
-     * @return \DateTime|string     Repository earliest update change on data
+     * @return \DateTimeInterface Repository earliest update change on data
      */
-    public function getEarliestDatestamp();
+    public function getEarliestDatestamp(): DateTimeInterface;
 
     /**
-     * @param  string $identifier [description]
-     * @return array
+     * @param string $id Record identifier
+     *
+     * @return RecordInterface|null
      */
-    public function getRecord($id);
+    public function getRecord(string $id): ?RecordInterface;
 
     /**
-     * Search for records
-     * @param  String|null    $setTitle Title of wanted set
-     * @param  \DateTime|null $from     Date of last change «from»
-     * @param  \DataTime|null $until    Date of last change «until»
-     * @return array|ArrayObject        List of items
+     * Search for records.
+     *
+     * @param string|null            $setTitle Title of wanted set
+     * @param DateTimeInterface|null $from Date of last change «from»
+     * @param DateTimeInterface|null $until Date of last change «until»
+     *
+     * @return array|RecordInterface[] List of items
      */
-    public function getRecords($set = null, \DateTime $from = null, \DateTime $until = null);
+    public function getRecords(?string $setTitle = null, ?DateTimeInterface $from = null, ?DateTimeInterface $until = null): array;
 
     /**
-     * must return an array of arrays with keys «identifier» and «name»
+     * Returns an array of arrays with keys «identifier» and «name».
+     *
      * @return array List of all sets, with identifier and name
      */
-    public function getSets();
+    public function getSets(): array;
 
     /**
-     * Tell me, this «record», in which «set» is it ?
-     * @param  any   $record An item of elements furnished by getRecords method
-     * @return array         List of sets, the record belong to
+     * Tell me, this «record», in which «set» is it?
+     *
+     * @param RecordInterface $record An item of elements furnished by getRecords method
+     *
+     * @return array List of the sets the record belongs to
      */
-    public function getSetsForRecord($record);
+    public function getSetsForRecord(RecordInterface $record): array;
 
     /**
-     * Transform the provided record in an array with Dublin Core, «dc_title»  style
-     * @param  any   $record An item of elements furnished by getRecords method
-     * @return array         Dublin core data
+     * Transform the provided record in an array with Dublin Core, «dc_title» style.
+     *
+     * @param RecordInterface $record An item of elements furnished by getRecords method
+     *
+     * @return array Dublin core data
      */
-    public function dublinizeRecord($record);
+    public function dublinizeRecord(RecordInterface $record): array;
 
     /**
-     * Check if sets are supported by data provider
+     * Check if sets are supported by data provider.
+     *
      * @return boolean check
      */
-    public function checkSupportSets();
-
-    /**
-     * Get identifier of id
-     * @param  any   $record An item of elements furnished by getRecords method
-     * @return string        Record Id
-     */
-    public static function getRecordId($record);
-
-    /**
-     * Get last change date
-     * @param  any   $record An item of elements furnished by getRecords method
-     * @return \DateTime|string     Record last change
-     */
-    public static function getRecordUpdated($record);
+    public function checkSupportSets(): bool;
 }

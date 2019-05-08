@@ -11,6 +11,7 @@ class BadResumptionTokenException extends OaiPmhServerException implements Excep
         if (!$message) {
             $message = 'The value of the resumptionToken argument is invalid or expired.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

@@ -1,14 +1,14 @@
-{% extends 'NaonedOaiPmhServerBundle::template.xml.twig' %}
+{% extends '@NaonedOaiPmhServer/template.xml.twig' %}
 
 {% block content %}
-  <ListSets>
+<ListSets>
     {% for position in resumption.starts..resumption.ends %}
-      {% set oaiSet = resumption.items[position] %}
-      <set>
-        <setSpec>{{ oaiSet.identifier }}</setSpec>
-        <setName>{{ oaiSet.name }}</setName>
-      </set>
+        {% set oaiSet = resumption.items[position] %}
+        <set>
+            <setSpec>{{ oaiSet.identifier }}</setSpec>
+            <setName>{{ oaiSet.name }}</setName>
+        </set>
     {% endfor %}
-    {% include 'NaonedOaiPmhServerBundle::resumptionToken.xml.twig' %}
-  </ListSets>
+    {% include '@NaonedOaiPmhServer/resumptionToken.xml.twig' %}
+</ListSets>
 {% endblock %}

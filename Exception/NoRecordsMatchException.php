@@ -12,6 +12,7 @@ class NoRecordsMatchException extends OaiPmhServerException implements Exception
             $message = 'The combination of the values of the from, until, set and metadataPrefix arguments results
                         in an empty list.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

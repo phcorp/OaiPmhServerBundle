@@ -12,6 +12,7 @@ class BadArgumentException extends OaiPmhServerException implements ExceptionInt
             $message = 'The request includes illegal arguments, is missing required arguments, includes a repeated
             			argument, or values for arguments have an illegal syntax.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }

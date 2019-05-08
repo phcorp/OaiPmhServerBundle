@@ -17,14 +17,13 @@ class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
-                ->scalarNode('data_provider_service_name')
-                    ->defaultValue('naoned.oaipmh.data_provider')
-                ->end()
-                ->scalarNode('count_per_load')
-                    ->defaultValue(50)
-                ->end()
+            ->scalarNode('data_provider_service_name')
+            ->defaultValue('naoned.oaipmh.data_provider')
             ->end()
-        ;
+            ->scalarNode('count_per_load')
+            ->defaultValue(50)
+            ->end()
+            ->end();
 
         return $treeBuilder;
     }

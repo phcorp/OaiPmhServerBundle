@@ -11,6 +11,7 @@ class IdDoesNotExistException extends OaiPmhServerException implements Exception
         if (!$message) {
             $message = 'The value of the identifier argument is unknown or illegal in this repository.';
         }
+
         return parent::__construct($message, $code, $previous);
     }
 }
