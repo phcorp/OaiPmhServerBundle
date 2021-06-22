@@ -3,8 +3,10 @@
 namespace Naoned\OaiPmhServerBundle\Twig;
 
 use Naoned\OaiPmhServerBundle\DataProvider\DataProviderInterface;
+use Twig\Extension\AbstractExtension;
+use Twig\TwigFunction;
 
-class RecordExtension extends \Twig_Extension
+class RecordExtension extends AbstractExtension
 {
     /**
      * @var DataProviderInterface
@@ -14,11 +16,11 @@ class RecordExtension extends \Twig_Extension
     public function getFunctions()
     {
         return array(
-            new \Twig_SimpleFunction('get_record_sets', [$this, 'getRecordSets']),
-            new \Twig_SimpleFunction('dublinize_record', [$this, 'dublinizeRecord']),
-            new \Twig_SimpleFunction('get_record_id', [$this, 'getRecordId']),
-            new \Twig_SimpleFunction('get_record_updated', [$this, 'getRecordUpdated']),
-            new \Twig_SimpleFunction('get_thumb', [$this, 'getThumb']),
+            new TwigFunction('get_record_sets', [$this, 'getRecordSets']),
+            new TwigFunction('dublinize_record', [$this, 'dublinizeRecord']),
+            new TwigFunction('get_record_id', [$this, 'getRecordId']),
+            new TwigFunction('get_record_updated', [$this, 'getRecordUpdated']),
+            new TwigFunction('get_thumb', [$this, 'getThumb']),
         );
     }
 
