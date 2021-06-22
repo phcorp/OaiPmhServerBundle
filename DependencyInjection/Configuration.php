@@ -12,8 +12,8 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('naoned_oai_pmh_server');
+        $treeBuilder = new TreeBuilder('naoned_oai_pmh_server');
+        $rootNode = $treeBuilder->getRootNode();
 
         $rootNode
             ->children()
