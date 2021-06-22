@@ -25,6 +25,6 @@
     "target-dir": "Naoned/OaiPmhServerBundle",
     "require": {
         "php": ">=7.1",
-        "doctrine/common": "~2"
+        "doctrine/common": ">=2"
     }
 }
